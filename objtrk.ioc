@@ -1186,6 +1186,7 @@ PI15.Signal=LTDC_R0
 PB8.Signal=I2C1_SCL
 PE3.GPIO_Label=OTG_HS_OverCurrent [STMPS2151STR_FAULT]
 PC9.Signal=SDMMC1_D1
+NVIC.DCMI_IRQn=true\:0\:0\:false\:false\:true\:true\:true
 PB8.GPIO_Mode=GPIO_MODE_AF_OD
 RCC.APB1Freq_Value=50000000
 PJ11.GPIOParameters=GPIO_Label

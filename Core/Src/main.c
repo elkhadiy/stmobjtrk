@@ -80,6 +80,12 @@ int __io_putchar(int ch) {
 	else
 		return 0;
 }
+
+int fps = 0;
+
+void HAL_DCMI_FrameEventCallback(DCMI_HandleTypeDef *hdcmi) {
+	fps++;
+}
 /* USER CODE END 0 */
 
 /**
@@ -125,6 +131,8 @@ int main(void)
   CAMERA_Initialization_sequence();
   printf("CAMERA INIT SEQ DONE\r\n");
 
+  __HAL_DCMI_ENABLE_IT(&hdcmi, DCMI_IT_FRAME);
+
   CAMERA_Start_Crop_Capture_To_Video_Buffer();
 
   /* USER CODE END 2 */
@@ -133,6 +141,9 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	printf("%i\r\n", fps);
+	fps = 0;
+	HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
