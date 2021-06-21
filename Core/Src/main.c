@@ -43,6 +43,8 @@
 
 /* Private variables ---------------------------------------------------------*/
 
+DMA2D_HandleTypeDef hdma2d;
+
 LTDC_HandleTypeDef hltdc;
 
 UART_HandleTypeDef huart1;
@@ -59,6 +61,7 @@ static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_FMC_Init(void);
 static void MX_LTDC_Init(void);
+static void MX_DMA2D_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -104,28 +107,26 @@ int main(void)
   MX_USART1_UART_Init();
   MX_FMC_Init();
   MX_LTDC_Init();
+  MX_DMA2D_Init();
   /* USER CODE BEGIN 2 */
   printf("PERIPH INIT DONE\r\n");
   SDRAM_Initialization_sequence();
   printf("SDRAM INIT SEQ DONE\r\n");
 
-  for (int i=0; i < 272; i++)
-	  for (int j=0; j < 480; j++)
+  for (int i = 0; i < 272; i++)
+	  for (int j = 0; j < 480; j++)
 		  *(__IO uint16_t *)(SDRAM_BANK_ADDR + (480 * i + j) * 2) = 0b1111100000011111;
 
-  for (int i = (272 - 240) / 2; i < 272 - (272 - 240) / 2; i++) {
-	  for (int j = (480 - 320) / 2 - 1; j < (480 - 320) / 2 + 3; j++)
-		  *(__IO uint16_t *)(SDRAM_BANK_ADDR + (480 * i + j) * 2) = 0b0000000000011111;
-	  for (int j = 480 - (480 - 320) / 2 - 1; j < 480 - (480 - 320) / 2 + 3; j++)
-			  *(__IO uint16_t *)(SDRAM_BANK_ADDR + (480 * i + j) * 2) = 0b0000000000011111;
-  }
+  uint16_t blue_rectangle[20][40];
 
-  for (int j = (480 - 320) / 2 - 1; j < 480 - (480 - 320) / 2 + 3; j++) {
-	  for (int i = (272 - 240) / 2 - 1; i < (272 - 240) / 2 + 3; i++)
-		  *(__IO uint16_t *)(SDRAM_BANK_ADDR + (480 * i + j) * 2) = 0b0000000000011111;
-	  for (int i = 272 - (272 - 240) / 2 - 1; i < 272 - (272 - 240) / 2 + 3; i++)
-		  *(__IO uint16_t *)(SDRAM_BANK_ADDR + (480 * i + j) * 2) = 0b0000000000011111;
-  }
+  for (int i = 0; i < 20; i++)
+	  for (int j = 0; j < 40; j++)
+		  blue_rectangle[i][j] = 0b0000000000011111;
+
+  hdma2d.Init.OutputOffset = 480 - 40;
+  HAL_DMA2D_Init(&hdma2d);
+  HAL_DMA2D_Start(&hdma2d, (uint32_t)blue_rectangle, SDRAM_BANK_ADDR + (100 + 20 * 480) * 2, 40, 20);
+  HAL_DMA2D_PollForTransfer(&hdma2d, 10);
 
   printf("DISPLAY TEST DONE\r\n");
   /* USER CODE END 2 */
@@ -204,6 +205,43 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief DMA2D Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_DMA2D_Init(void)
+{
+
+  /* USER CODE BEGIN DMA2D_Init 0 */
+
+  /* USER CODE END DMA2D_Init 0 */
+
+  /* USER CODE BEGIN DMA2D_Init 1 */
+
+  /* USER CODE END DMA2D_Init 1 */
+  hdma2d.Instance = DMA2D;
+  hdma2d.Init.Mode = DMA2D_M2M;
+  hdma2d.Init.ColorMode = DMA2D_OUTPUT_RGB565;
+  hdma2d.Init.OutputOffset = 0;
+  hdma2d.LayerCfg[1].InputOffset = 0;
+  hdma2d.LayerCfg[1].InputColorMode = DMA2D_INPUT_RGB565;
+  hdma2d.LayerCfg[1].AlphaMode = DMA2D_NO_MODIF_ALPHA;
+  hdma2d.LayerCfg[1].InputAlpha = 0;
+  if (HAL_DMA2D_Init(&hdma2d) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_DMA2D_ConfigLayer(&hdma2d, 1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN DMA2D_Init 2 */
+
+  /* USER CODE END DMA2D_Init 2 */
+
 }
 
 /**
