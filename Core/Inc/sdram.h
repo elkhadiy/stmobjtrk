@@ -20,6 +20,6 @@
 #define SDRAM_MODEREG_WRITEBURST_MODE_SINGLE     ((uint16_t)0x0200)
 
 
-void SDRAM_Initialization_sequence();
+int SDRAM_Initialization_sequence();
 
 #endif

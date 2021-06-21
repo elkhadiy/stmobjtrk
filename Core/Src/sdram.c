@@ -4,7 +4,7 @@
 extern SDRAM_HandleTypeDef hsdram1;
 
 
-void SDRAM_Initialization_sequence() {
+int SDRAM_Initialization_sequence() {
 
   __IO uint32_t tmpmrd = 0;
 
@@ -59,5 +59,7 @@ void SDRAM_Initialization_sequence() {
   /* Step 6: Set the refresh rate counter */
   /* Set the device refresh rate */
   HAL_SDRAM_ProgramRefreshRate(&hsdram1, REFRESH_COUNT);
+
+  return 1;
 
 }

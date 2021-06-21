@@ -22,9 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <stdlib.h>
-#include <stdio.h>
-#include <inttypes.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,7 +41,12 @@
 
 /* Private variables ---------------------------------------------------------*/
 
+DCMI_HandleTypeDef hdcmi;
+DMA_HandleTypeDef hdma_dcmi;
+
 DMA2D_HandleTypeDef hdma2d;
+
+I2C_HandleTypeDef hi2c1;
 
 LTDC_HandleTypeDef hltdc;
 
@@ -58,10 +61,13 @@ SDRAM_HandleTypeDef hsdram1;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_FMC_Init(void);
 static void MX_LTDC_Init(void);
 static void MX_DMA2D_Init(void);
+static void MX_DCMI_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -104,31 +110,23 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_FMC_Init();
   MX_LTDC_Init();
   MX_DMA2D_Init();
+  MX_DCMI_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  printf("PERIPH INIT DONE\r\n");
+
   SDRAM_Initialization_sequence();
   printf("SDRAM INIT SEQ DONE\r\n");
 
-  for (int i = 0; i < 272; i++)
-	  for (int j = 0; j < 480; j++)
-		  *(__IO uint16_t *)(SDRAM_BANK_ADDR + (480 * i + j) * 2) = 0b1111100000011111;
+  CAMERA_Initialization_sequence();
+  printf("CAMERA INIT SEQ DONE\r\n");
 
-  uint16_t blue_rectangle[20][40];
+  CAMERA_Start_Crop_Capture_To_Video_Buffer();
 
-  for (int i = 0; i < 20; i++)
-	  for (int j = 0; j < 40; j++)
-		  blue_rectangle[i][j] = 0b0000000000011111;
-
-  hdma2d.Init.OutputOffset = 480 - 40;
-  HAL_DMA2D_Init(&hdma2d);
-  HAL_DMA2D_Start(&hdma2d, (uint32_t)blue_rectangle, SDRAM_BANK_ADDR + (100 + 20 * 480) * 2, 40, 20);
-  HAL_DMA2D_PollForTransfer(&hdma2d, 10);
-
-  printf("DISPLAY TEST DONE\r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -193,7 +191,8 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_LTDC|RCC_PERIPHCLK_USART1;
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_LTDC|RCC_PERIPHCLK_USART1
+                              |RCC_PERIPHCLK_I2C1;
   PeriphClkInitStruct.PLLSAI.PLLSAIN = 384;
   PeriphClkInitStruct.PLLSAI.PLLSAIR = 5;
   PeriphClkInitStruct.PLLSAI.PLLSAIQ = 2;
@@ -201,10 +200,48 @@ void SystemClock_Config(void)
   PeriphClkInitStruct.PLLSAIDivQ = 1;
   PeriphClkInitStruct.PLLSAIDivR = RCC_PLLSAIDIVR_8;
   PeriphClkInitStruct.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
+  PeriphClkInitStruct.I2c1ClockSelection = RCC_I2C1CLKSOURCE_PCLK1;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief DCMI Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_DCMI_Init(void)
+{
+
+  /* USER CODE BEGIN DCMI_Init 0 */
+
+  /* USER CODE END DCMI_Init 0 */
+
+  /* USER CODE BEGIN DCMI_Init 1 */
+
+  /* USER CODE END DCMI_Init 1 */
+  hdcmi.Instance = DCMI;
+  hdcmi.Init.SynchroMode = DCMI_SYNCHRO_HARDWARE;
+  hdcmi.Init.PCKPolarity = DCMI_PCKPOLARITY_RISING;
+  hdcmi.Init.VSPolarity = DCMI_VSPOLARITY_HIGH;
+  hdcmi.Init.HSPolarity = DCMI_HSPOLARITY_LOW;
+  hdcmi.Init.CaptureRate = DCMI_CR_ALL_FRAME;
+  hdcmi.Init.ExtendedDataMode = DCMI_EXTEND_DATA_8B;
+  hdcmi.Init.JPEGMode = DCMI_JPEG_DISABLE;
+  hdcmi.Init.ByteSelectMode = DCMI_BSM_ALL;
+  hdcmi.Init.ByteSelectStart = DCMI_OEBS_ODD;
+  hdcmi.Init.LineSelectMode = DCMI_LSM_ALL;
+  hdcmi.Init.LineSelectStart = DCMI_OELS_ODD;
+  if (HAL_DCMI_Init(&hdcmi) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN DCMI_Init 2 */
+
+  /* USER CODE END DCMI_Init 2 */
+
 }
 
 /**
@@ -241,6 +278,52 @@ static void MX_DMA2D_Init(void)
   /* USER CODE BEGIN DMA2D_Init 2 */
 
   /* USER CODE END DMA2D_Init 2 */
+
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.Timing = 0x00C0EAFF;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
 
 }
 
@@ -338,6 +421,22 @@ static void MX_USART1_UART_Init(void)
   /* USER CODE BEGIN USART1_Init 2 */
 
   /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA2_Stream1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream1_IRQn);
 
 }
 
@@ -450,14 +549,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
   HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : ARDUINO_SCL_D15_Pin ARDUINO_SDA_D14_Pin */
-  GPIO_InitStruct.Pin = ARDUINO_SCL_D15_Pin|ARDUINO_SDA_D14_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
   /*Configure GPIO pins : ULPI_D7_Pin ULPI_D6_Pin ULPI_D5_Pin ULPI_D3_Pin
                            ULPI_D2_Pin ULPI_D1_Pin ULPI_D4_Pin */
   GPIO_InitStruct.Pin = ULPI_D7_Pin|ULPI_D6_Pin|ULPI_D5_Pin|ULPI_D3_Pin
@@ -501,14 +592,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   GPIO_InitStruct.Alternate = GPIO_AF1_TIM2;
   HAL_GPIO_Init(ARDUINO_PWM_D9_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : DCMI_D6_Pin DCMI_D7_Pin */
-  GPIO_InitStruct.Pin = DCMI_D6_Pin|DCMI_D7_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF13_DCMI;
-  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pin : QSPI_NCS_Pin */
   GPIO_InitStruct.Pin = QSPI_NCS_Pin;
@@ -561,14 +644,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(OTG_FS_PowerSwitchOn_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : DCMI_D5_Pin */
-  GPIO_InitStruct.Pin = DCMI_D5_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF13_DCMI;
-  HAL_GPIO_Init(DCMI_D5_GPIO_Port, &GPIO_InitStruct);
-
   /*Configure GPIO pins : ARDUINO_D7_Pin ARDUINO_D8_Pin LCD_DISP_Pin */
   GPIO_InitStruct.Pin = ARDUINO_D7_Pin|ARDUINO_D8_Pin|LCD_DISP_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -588,14 +663,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LCD_BL_CTRL_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : DCMI_VSYNC_Pin */
-  GPIO_InitStruct.Pin = DCMI_VSYNC_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF13_DCMI;
-  HAL_GPIO_Init(DCMI_VSYNC_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : OTG_FS_OverCurrent_Pin */
   GPIO_InitStruct.Pin = OTG_FS_OverCurrent_Pin;
@@ -631,16 +698,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(DCMI_PWR_EN_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : DCMI_D4_Pin DCMI_D3_Pin DCMI_D0_Pin DCMI_D2_Pin
-                           DCMI_D1_Pin */
-  GPIO_InitStruct.Pin = DCMI_D4_Pin|DCMI_D3_Pin|DCMI_D0_Pin|DCMI_D2_Pin
-                          |DCMI_D1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF13_DCMI;
-  HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
 
   /*Configure GPIO pin : ARDUINO_PWM_CS_D5_Pin */
   GPIO_InitStruct.Pin = ARDUINO_PWM_CS_D5_Pin;
@@ -746,14 +803,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(ARDUINO_A0_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : DCMI_HSYNC_Pin PA6 */
-  GPIO_InitStruct.Pin = DCMI_HSYNC_Pin|GPIO_PIN_6;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF13_DCMI;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LCD_SCL_Pin LCD_SDA_Pin */
   GPIO_InitStruct.Pin = LCD_SCL_Pin|LCD_SDA_Pin;
