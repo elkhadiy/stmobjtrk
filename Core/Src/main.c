@@ -86,24 +86,31 @@ int fps = 0;
 #define BUFW 320
 #define BUFH 240
 #define BUFSIZE (2 * BUFW * BUFH)
-uint16_t buf[2][BUFW * BUFH];
 uint8_t sw = 0;
+
+uint16_t buf[2][BUFSIZE / 2];
+
+uint32_t bufaddr[2] = {
+//	SDRAM_BANK_ADDR + 2 * 480 * 272,
+//	SDRAM_BANK_ADDR + 2 * 480 * 272 + BUFSIZE
+	(uint32_t)buf[0], (uint32_t)buf[1]
+};
 
 void HAL_DCMI_FrameEventCallback(DCMI_HandleTypeDef *hdcmi) {
 	fps++;
 	HAL_DCMI_Stop(hdcmi);
 	HAL_DMA2D_Abort(&hdma2d);
-	HAL_DMA2D_Start_IT(
+	HAL_DMA2D_Start(
 			&hdma2d,
-			(uint32_t)buf[sw],
-			0xC0000000 + ((480 - BUFW) / 2 + ((272 - BUFH) /  2) * 480) * 2,
+			bufaddr[sw],
+			SDRAM_BANK_ADDR + ((480 - BUFW) / 2 + ((272 - BUFH) /  2) * 480) * 2,
 			BUFW,
 			BUFH
 	);
-//	HAL_DMA2D_PollForTransfer(&hdma2d, 10);
+//	HAL_DMA2D_PollForTransfer(&hdma2d, 1);
 	sw ^= sw;
 	__HAL_DCMI_ENABLE_IT(hdcmi, DCMI_IT_FRAME);
-	HAL_DCMI_Start_DMA(hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)buf[sw], BUFSIZE);
+	HAL_DCMI_Start_DMA(hdcmi, DCMI_MODE_SNAPSHOT, bufaddr[sw], BUFSIZE);
 //	HAL_DMA2D_PollForTransfer(&hdma2d, 10);
 //	HAL_DCMI_Resume(hdcmi);
 }
@@ -164,7 +171,7 @@ int main(void)
   HAL_DMA2D_Init(&hdma2d);
 
 //  CAMERA_Start_Capture((uint16_t *)buf0, sizeof(buf0));
-  HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)buf[sw], BUFSIZE);
+  HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, bufaddr[sw], BUFSIZE);
 
   /* USER CODE END 2 */
 
