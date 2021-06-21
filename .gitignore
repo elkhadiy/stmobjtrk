@@ -1,4 +1,7 @@
-.settings/stm32cubeide.project.prefs
+.cproject
+.mxproject
+.project
+.settings/
 Debug/
-objtrk Debug.launch
+*.launch
 
