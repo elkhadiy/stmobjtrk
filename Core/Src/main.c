@@ -88,18 +88,18 @@ int fps = 0;
 #define BUFSIZE (2 * BUFW * BUFH)
 uint8_t sw = 0;
 
-uint16_t buf[2][BUFSIZE / 2];
+//uint16_t buf[2][BUFSIZE / 2];
 
 uint32_t bufaddr[2] = {
-//	SDRAM_BANK_ADDR + 2 * 480 * 272,
-//	SDRAM_BANK_ADDR + 2 * 480 * 272 + BUFSIZE
-	(uint32_t)buf[0], (uint32_t)buf[1]
+	SDRAM_BANK_ADDR + 2 * 480 * 272,
+	SDRAM_BANK_ADDR + 2 * 480 * 272 + BUFSIZE
+//	(uint32_t)buf[0], (uint32_t)buf[1]
 };
 
 void HAL_DCMI_FrameEventCallback(DCMI_HandleTypeDef *hdcmi) {
 	fps++;
 	HAL_DCMI_Stop(hdcmi);
-	HAL_DMA2D_Abort(&hdma2d);
+//	HAL_DMA2D_Abort(&hdma2d);
 	HAL_DMA2D_Start(
 			&hdma2d,
 			bufaddr[sw],
@@ -107,7 +107,7 @@ void HAL_DCMI_FrameEventCallback(DCMI_HandleTypeDef *hdcmi) {
 			BUFW,
 			BUFH
 	);
-//	HAL_DMA2D_PollForTransfer(&hdma2d, 1);
+	HAL_DMA2D_PollForTransfer(&hdma2d, 1);
 	sw ^= sw;
 	__HAL_DCMI_ENABLE_IT(hdcmi, DCMI_IT_FRAME);
 	HAL_DCMI_Start_DMA(hdcmi, DCMI_MODE_SNAPSHOT, bufaddr[sw], BUFSIZE);
