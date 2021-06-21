@@ -83,18 +83,29 @@ int __io_putchar(int ch) {
 
 int fps = 0;
 
+#define BUFW 320
+#define BUFH 240
+#define BUFSIZE (2 * BUFW * BUFH)
+uint16_t buf[2][BUFW * BUFH];
+uint8_t sw = 0;
+
 void HAL_DCMI_FrameEventCallback(DCMI_HandleTypeDef *hdcmi) {
 	fps++;
-	HAL_DCMI_Suspend(hdcmi);
-	HAL_DMA2D_Start(
+	HAL_DCMI_Stop(hdcmi);
+	HAL_DMA2D_Abort(&hdma2d);
+	HAL_DMA2D_Start_IT(
 			&hdma2d,
-			0xC0000000 + 2 * 480 * 272,
-			0xC0000000 + ((480 - 320) / 2 + ((272 - 240) /  2) * 480) * 2,
-			320,
-			240
+			(uint32_t)buf[sw],
+			0xC0000000 + ((480 - BUFW) / 2 + ((272 - BUFH) /  2) * 480) * 2,
+			BUFW,
+			BUFH
 	);
-	HAL_DMA2D_PollForTransfer(&hdma2d, 10);
-	HAL_DCMI_Resume(hdcmi);
+//	HAL_DMA2D_PollForTransfer(&hdma2d, 10);
+	sw ^= sw;
+	__HAL_DCMI_ENABLE_IT(hdcmi, DCMI_IT_FRAME);
+	HAL_DCMI_Start_DMA(hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)buf[sw], BUFSIZE);
+//	HAL_DMA2D_PollForTransfer(&hdma2d, 10);
+//	HAL_DCMI_Resume(hdcmi);
 }
 /* USER CODE END 0 */
 
@@ -152,7 +163,8 @@ int main(void)
   hdma2d.Init.OutputOffset = 480 - 320;
   HAL_DMA2D_Init(&hdma2d);
 
-  CAMERA_Start_Capture();
+//  CAMERA_Start_Capture((uint16_t *)buf0, sizeof(buf0));
+  HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)buf[sw], BUFSIZE);
 
   /* USER CODE END 2 */
 

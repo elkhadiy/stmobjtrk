@@ -519,9 +519,9 @@ void CAMERA_Start_Crop_Capture_To_Video_Buffer() {
 }
 
 
-void CAMERA_Start_Capture() {
+void CAMERA_Start_Capture(uint16_t *buf, size_t bufsize) {
 
-	HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_CONTINUOUS, 0xC0000000 + 2 * 480 * 272, 2 * 320 * 240);
+	HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_CONTINUOUS, (uint32_t)buf, bufsize);
 
 }
 
