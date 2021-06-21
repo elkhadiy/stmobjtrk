@@ -85,6 +85,16 @@ int fps = 0;
 
 void HAL_DCMI_FrameEventCallback(DCMI_HandleTypeDef *hdcmi) {
 	fps++;
+	HAL_DCMI_Suspend(hdcmi);
+	HAL_DMA2D_Start(
+			&hdma2d,
+			0xC0000000 + 2 * 480 * 272,
+			0xC0000000 + ((480 - 320) / 2 + ((272 - 240) /  2) * 480) * 2,
+			320,
+			240
+	);
+	HAL_DMA2D_PollForTransfer(&hdma2d, 10);
+	HAL_DCMI_Resume(hdcmi);
 }
 /* USER CODE END 0 */
 
@@ -133,7 +143,16 @@ int main(void)
 
   __HAL_DCMI_ENABLE_IT(&hdcmi, DCMI_IT_FRAME);
 
-  CAMERA_Start_Crop_Capture_To_Video_Buffer();
+  hdma2d.Init.Mode = DMA2D_R2M;
+  HAL_DMA2D_Init(&hdma2d);
+  HAL_DMA2D_Start(&hdma2d, 0, 0xC0000000, 480, 272);
+  HAL_DMA2D_PollForTransfer(&hdma2d, 10);
+
+  hdma2d.Init.Mode = DMA2D_M2M;
+  hdma2d.Init.OutputOffset = 480 - 320;
+  HAL_DMA2D_Init(&hdma2d);
+
+  CAMERA_Start_Capture();
 
   /* USER CODE END 2 */
 

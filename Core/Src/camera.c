@@ -482,15 +482,15 @@ int CAMERA_Initialization_sequence() {
 			HAL_I2C_Mem_Write(&hi2c1, 0x60, 0x12, I2C_MEMADD_SIZE_8BIT, &sccb_reg_reset, 1, 1000);
 			HAL_Delay(200);
 
-			for (int i = 0; i < sizeof(OV9655_VGA) / 2; i++) {
+			for (int i = 0; i < sizeof(OV9655_QVGA) / 2; i++) {
 
-				HAL_I2C_Mem_Write(&hi2c1, 0x61, OV9655_VGA[i][0], I2C_MEMADD_SIZE_8BIT, (uint8_t *)&OV9655_VGA[i][1], 1, 1000);
+				HAL_I2C_Mem_Write(&hi2c1, 0x61, OV9655_QVGA[i][0], I2C_MEMADD_SIZE_8BIT, (uint8_t *)&OV9655_QVGA[i][1], 1, 1000);
 				HAL_Delay(2);
 				uint8_t rdbk;
-				HAL_I2C_Mem_Read(&hi2c1, 0x60, OV9655_VGA[i][0], I2C_MEMADD_SIZE_8BIT, (uint8_t *)&rdbk, 1, 1000);
+				HAL_I2C_Mem_Read(&hi2c1, 0x60, OV9655_QVGA[i][0], I2C_MEMADD_SIZE_8BIT, (uint8_t *)&rdbk, 1, 1000);
 
-				if (rdbk != OV9655_VGA[i][1])
-					printf("Failed read back of reg %02x: %02x [%02x]\r\n", OV9655_VGA[i][0], OV9655_VGA[i][1], rdbk);
+				if (rdbk != OV9655_QVGA[i][1])
+					printf("Failed read back of reg %02x: %02x [%02x]\r\n", OV9655_QVGA[i][0], OV9655_QVGA[i][1], rdbk);
 			}
 
 		} else {
