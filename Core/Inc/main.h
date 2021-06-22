@@ -35,6 +35,7 @@ extern "C" {
 #include <stdlib.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include <stdbool.h>
 #include "sdram.h"
 #include "camera.h"
 /* USER CODE END Includes */

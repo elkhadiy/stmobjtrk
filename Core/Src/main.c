@@ -81,38 +81,56 @@ int __io_putchar(int ch) {
 		return 0;
 }
 
-int fps = 0;
+int dma2d_fps = 0;
+int dcmi_fps = 0;
 
-#define BUFW 320
-#define BUFH 240
-#define BUFSIZE (2 * BUFW * BUFH)
-uint8_t sw = 0;
+#define SCREEN_W (480)
+#define SCREEN_H (272)
+#define VRAM_SIZE (2 * SCREEN_W * SCREEN_H)
 
-//uint16_t buf[2][BUFSIZE / 2];
+#define CAPTURE_W (240)
+#define CAPTURE_H (240)
+#define CAPTURE_SIZE (2 * CAPTURE_W * CAPTURE_H)
 
-uint32_t bufaddr[2] = {
-	SDRAM_BANK_ADDR + 2 * 480 * 272,
-	SDRAM_BANK_ADDR + 2 * 480 * 272 + BUFSIZE
-//	(uint32_t)buf[0], (uint32_t)buf[1]
-};
+uint16_t buf[CAPTURE_W * CAPTURE_H];
+#define CAPTURE_MEM ((uint32_t)((uint16_t *)buf))
+#define CAPTURE_MEM0 (SDRAM_BANK_ADDR + VRAM_SIZE)
+#define CAPTURE_MEM1 (SDRAM_BANK_ADDR + VRAM_SIZE + 2 * CAPTURE_SIZE)
+
+bool dcmi_sw = false;
+uint32_t buffaddr[2] = { CAPTURE_MEM0, CAPTURE_MEM1 };
+
 
 void HAL_DCMI_FrameEventCallback(DCMI_HandleTypeDef *hdcmi) {
-	fps++;
+
+	dcmi_fps++;
+
 	HAL_DCMI_Stop(hdcmi);
-//	HAL_DMA2D_Abort(&hdma2d);
-	HAL_DMA2D_Start(
+
+	HAL_DMA2D_Start_IT(
 			&hdma2d,
-			bufaddr[sw],
-			SDRAM_BANK_ADDR + ((480 - BUFW) / 2 + ((272 - BUFH) /  2) * 480) * 2,
-			BUFW,
-			BUFH
+			buffaddr[dcmi_sw],
+			SDRAM_BANK_ADDR + ((SCREEN_W - CAPTURE_W) / 2 + ((SCREEN_H - CAPTURE_H) /  2) * SCREEN_W) * 2,
+			CAPTURE_W,
+			CAPTURE_H
 	);
-	HAL_DMA2D_PollForTransfer(&hdma2d, 1);
-	sw ^= sw;
-	__HAL_DCMI_ENABLE_IT(hdcmi, DCMI_IT_FRAME);
-	HAL_DCMI_Start_DMA(hdcmi, DCMI_MODE_SNAPSHOT, bufaddr[sw], BUFSIZE);
-//	HAL_DMA2D_PollForTransfer(&hdma2d, 10);
-//	HAL_DCMI_Resume(hdcmi);
+
+	dcmi_sw = !dcmi_sw;
+
+	HAL_DCMI_Start_DMA(hdcmi, DCMI_MODE_SNAPSHOT, buffaddr[dcmi_sw], CAPTURE_SIZE / 4);
+
+}
+
+void DMA2D_XferCpltCallback(DMA2D_HandleTypeDef *hdma2d) {
+
+	dma2d_fps++;
+
+}
+
+void DMA2D_XferErrorCallback(DMA2D_HandleTypeDef *hdma2d) {
+
+	printf("DMA2D XferError\r\n");
+
 }
 /* USER CODE END 0 */
 
@@ -159,19 +177,40 @@ int main(void)
   CAMERA_Initialization_sequence();
   printf("CAMERA INIT SEQ DONE\r\n");
 
-  __HAL_DCMI_ENABLE_IT(&hdcmi, DCMI_IT_FRAME);
-
   hdma2d.Init.Mode = DMA2D_R2M;
   HAL_DMA2D_Init(&hdma2d);
-  HAL_DMA2D_Start(&hdma2d, 0, 0xC0000000, 480, 272);
+  HAL_DMA2D_Start(&hdma2d, 0, 0xC0000000, SCREEN_W, SCREEN_H);
   HAL_DMA2D_PollForTransfer(&hdma2d, 10);
 
   hdma2d.Init.Mode = DMA2D_M2M;
-  hdma2d.Init.OutputOffset = 480 - 320;
+  hdma2d.Init.OutputOffset = SCREEN_W - CAPTURE_W; // number of pixels on each line that should be ignored
+  hdma2d.XferCpltCallback = DMA2D_XferCpltCallback;
   HAL_DMA2D_Init(&hdma2d);
 
-//  CAMERA_Start_Capture((uint16_t *)buf0, sizeof(buf0));
-  HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, bufaddr[sw], BUFSIZE);
+  /* For 240x240 resolution, the OV9655 sensor is set to QVGA resolution
+   * as OV9655 doesn't supports 240x240  resolution,
+   * then DCMI is configured to output a 240x240 cropped window
+   *
+   * CWSIZER; DCMI crop window size,
+   * CWSTRTR; DCMI crop window start,
+   *
+   * hdcmi->Instance->CWSIZER = (XSize | (YSize << DCMI_CWSIZE_VLINE_Pos));
+   * hdcmi->Instance->CWSTRTR = (X0 | (Y0 << DCMI_CWSTRT_VST_Pos));
+   */
+  HAL_DCMI_ConfigCrop(
+		  &hdcmi,
+		  40,            /* X0 DCMI window X offset   : Crop in the middle of the VGA picture */
+		  0,             /* Y0 DCMI window Y offset   : Same height (same number of lines: no need to crop vertically) */
+		  (240 * 2) - 1, /* XSIZE DCMI Pixel per line : 2 pixels clock needed to capture one pixel */
+		  (240 * 1) - 1  /* YSIZE DCMI Line number    : All 240 lines are captured */
+  );
+  HAL_DCMI_EnableCrop(&hdcmi);
+
+  HAL_DMA2D_ConfigDeadTime(&hdma2d, 2);
+  HAL_DMA2D_EnableDeadTime(&hdma2d);
+
+  HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, buffaddr[dcmi_sw], CAPTURE_SIZE / 4);
+
 
   /* USER CODE END 2 */
 
@@ -179,9 +218,13 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	printf("%i\r\n", fps);
-	fps = 0;
+	printf("[FPS] DMA2D[%i]: %i | DCMI[%i]: %i\r\n", hdma2d.State, dma2d_fps, hdcmi.State, dcmi_fps);
+	dma2d_fps = 0; dcmi_fps = 0;
 	HAL_Delay(1000);
+
+	// you gonk watchdog on dma transfers and restart dcmi if no update
+	HAL_DCMI_Stop(&hdcmi);
+	HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, buffaddr[dcmi_sw], CAPTURE_SIZE / 4);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -213,8 +256,8 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 25;
-  RCC_OscInitStruct.PLL.PLLN = 400;
+  RCC_OscInitStruct.PLL.PLLM = 12;
+  RCC_OscInitStruct.PLL.PLLN = 192;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 2;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
@@ -242,12 +285,12 @@ void SystemClock_Config(void)
   }
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_LTDC|RCC_PERIPHCLK_USART1
                               |RCC_PERIPHCLK_I2C1;
-  PeriphClkInitStruct.PLLSAI.PLLSAIN = 384;
-  PeriphClkInitStruct.PLLSAI.PLLSAIR = 5;
+  PeriphClkInitStruct.PLLSAI.PLLSAIN = 50;
+  PeriphClkInitStruct.PLLSAI.PLLSAIR = 2;
   PeriphClkInitStruct.PLLSAI.PLLSAIQ = 2;
   PeriphClkInitStruct.PLLSAI.PLLSAIP = RCC_PLLSAIP_DIV2;
   PeriphClkInitStruct.PLLSAIDivQ = 1;
-  PeriphClkInitStruct.PLLSAIDivR = RCC_PLLSAIDIVR_8;
+  PeriphClkInitStruct.PLLSAIDivR = RCC_PLLSAIDIVR_2;
   PeriphClkInitStruct.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
   PeriphClkInitStruct.I2c1ClockSelection = RCC_I2C1CLKSOURCE_PCLK1;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)

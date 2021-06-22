@@ -41,6 +41,7 @@ NVIC.SVCall_IRQn=true\:0\:0\:false\:false\:true\:true\:false
 PG15.GPIO_Label=FMC_SDNCAS [MT48LC4M32B2B5-6A_CAS]
 PA4.Mode=Slave_8_bits_External_Synchro
 PF7.Signal=ADC3_IN5
+NVIC.DMA2D_IRQn=true\:0\:0\:false\:false\:true\:true\:true
 SH.FMC_SDNWE.0=FMC_SDNWE,12b-sda1
 PH9.Signal=DCMI_D0
 SH.FMC_D11_DA11.0=FMC_D11,sd-16b-d1
